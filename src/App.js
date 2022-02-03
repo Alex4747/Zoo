@@ -6,6 +6,7 @@ import Animal from './pages/Animal';
 const animalsData = [
   {
     id: 1,
+    parentId: 1,
     src: '../images/matatabi.png',
     name: 'Мататаби',
     title: 'Мататаби - двухвостая кошка биджу, хвостатый дух которая полностью покрыта сине-черным огнём. Запечатана в ' +
@@ -16,12 +17,14 @@ const animalsData = [
     src2: '../images/Yugito.png',
     gif: '../images/matatabi_gif.gif',
     lastEat: Date.now(),
-    feedIteration: 1,
+    feedIteration: 3 * 3600,
     alive: true,
     wasHungry: Date.now(),
+    birthday: "29.12.2012",
   },
   {
     id: 2,
+    parentId: 2,
     src: '../images/sonGoky.png',
     name: 'Сон Гоку',
     title: 'Сон Гоку - четыреххвостая обезьяна биджу, красношерстная зеленокожая обезьяна, дух который напоминающая по своей комплекции гориллу. ' +
@@ -32,12 +35,14 @@ const animalsData = [
     src2: '../images/Roushi.png',
     gif: '../images/songoku_gif.gif',
     lastEat: Date.now(),
-    feedIteration: 5,
+    feedIteration: 12 * 3600,
     alive: true,
     wasHungry: Date.now(),
+    birthday: "2.9.2010",
   },
   {
     id: 3,
+    parentId: 3,
     src: '../images/hachibi.png',
     name: 'Гьюки',
     title: 'Гьюки - осьминог с четырьмя длинными рогами на голове, похожими на рога овцы Якова. Как хвостатый зверь, он довольно большой,' +
@@ -51,12 +56,14 @@ const animalsData = [
     src2: '../images/Killer_B.png',
     gif: '../images/giybi_gif.gif',
     lastEat: Date.now(),
-    feedIteration: 10,
+    feedIteration: 24 * 3600,
     alive: true,
     wasHungry: Date.now(),
+    birthday: "15.1.2015",
   },
   {
     id: 4,
+    parentId: 4,
     src: '../images/kurama.png',
     name: 'Курама',
     title: 'Курама - лис с красно-оранженой шерстью, человеческими руками и девятью длинными хвостами. Внутри ушей и вокруг глаз' +
@@ -67,82 +74,102 @@ const animalsData = [
     src2: '../images/Naruto_Uzumaki.png',
     gif: '../images/kurama_gif.gif',
     lastEat: Date.now(),
-    feedIteration: 4,
+    feedIteration: 6 * 3600,
     alive: true,
     wasHungry: Date.now(),
+    birthday: "6.6.2011",
   },
 ];
 
-function App() {
-
-  const animalsWithFun = [...animalsData].map((animal) => {
-    animal.feed = function (){
+const animalsWithFun = [...animalsData].map((animal) => {
+  return Object.assign(animal, {
+    feed: () => {
       animal.lastEat = Date.now();
     }
-    return animal;
-  })
+  });
+})
 
-  let [animals, setAnimals] = useState(animalsWithFun);
+
+function App() {
+  const [animals, setAnimals] = useState(animalsWithFun);
+
+  // useEffect(() => {
+  //   const data = localStorage.getItem("server");
+  //   if (data) {
+  //     setAnimals(JSON.parse(data));
+  //   }
+  // }, []);
 
   useEffect(() => {
-    setInterval(() => {
-      const animalCopy = [...animals];
+    localStorage.setItem("server", JSON.stringify(animals));
+  });
 
-      animalCopy.map((animal) => {
-        const start = animal.lastEat;
-        const diffInMilliSec = Date.now() - start;
-        const diffInSec = Math.floor(diffInMilliSec / 1000);
-        const diffInPercent = 100 - Math.round((diffInSec / animal.feedIteration) * 100);
-        let hungryStatus = '';
-        if (diffInPercent >= 51) {
-          hungryStatus = 'green';
-        }
-        else if (diffInPercent <= 50 && diffInPercent >= 11) {
-          hungryStatus = 'yellow';
-        }
+  const getUpdatedAnimalsOnTimer = (animalsPrev) => {
+    const animalCopy = [...animalsPrev];
 
-        else if (diffInPercent <= 10 && diffInPercent >= -100){
-          hungryStatus = 'red';
-          animal.wasHungry = Date.now();
-        }
+    animalCopy.map((animal) => {
+      const start = animal.lastEat;
+      const diffInMilliSec = Date.now() - start;
+      const diffInSec = Math.floor(diffInMilliSec / 1000);
+      const diffInPercent = 100 - Math.round((diffInSec / animal.feedIteration) * 100);
+      let hungryStatus = '';
+      let speech = '';
 
-        if (diffInPercent <= -100) {
-          animal.alive = false;
-        }
+      const dateObj = new Date();
+      const day = dateObj.getUTCDate();
+      const month = dateObj.getUTCMonth() + 1;
+      const year = dateObj.getUTCFullYear();
+
+      if (diffInPercent >= 51) {
+        hungryStatus = 'green';
+        speech = 'Полный бак, дай полежать';
+      }
+      else if (diffInPercent <= 50 && diffInPercent >= 11) {
+        hungryStatus = 'yellow';
+        speech = 'Ну, печенюшку скушаю';
+      }
+
+      else if (diffInPercent <= 10 && diffInPercent >= -100){
+        hungryStatus = 'red';
+        speech = 'Дайте покушоц пожалуйсто';
+        animal.wasHungry = Date.now();
+      }
+
+      if (diffInPercent <= -100) {
+        animal.alive = false;
+      }
+
+      if ((Date.now() - animal.wasHungry) > (animal.feedIteration * 4000) && !animal.hadChild) {
+        animalCopy.push(Object.assign({}, animalCopy.find((e) => e.id === animal.parentId), {
+          id: animalCopy.length + 1,
+          wasHungry: Date.now(),
+          birthday: day + "." + month + "." + year,
+        }));
+        animal.hadChild = true;
+      }
+
+      if (animal.alive === false) {
+        animal.wasHungry = Date.now();
+      }
 
 
-        console.log(Date.now() - animal.wasHungry);
-        console.log(animal.feedIteration * 4000);
+      animal.hungryStatus = hungryStatus;
+      animal.speech = speech;
+    })
 
-        if ((Date.now() - animal.wasHungry) > (animal.feedIteration * 4000)) {
+    return animalCopy;
+  }
 
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (animals && animals.length) {
+        setAnimals(getUpdatedAnimalsOnTimer);
+      }
+    }, 10 );
 
-          animalCopy.push(Object.assign({}, {
-            id: 5,
-            src: '../images/kurama.png',
-            name: 'Курама 2',
-            title: 'Курама - лис с красно-оранженой шерстью, человеческими руками и девятью длинными хвостами. Внутри ушей и вокруг глаз' +
-              ' у него черная шерсть. Радужки глаз красные, а зрачки черные. Глава Горы Мьёбоку - огромная жаба Гамабунта, был размером лишь с половину туловища Девятихвостого. ' +
-              'Один зрачок Курамы больше человека в полный рост. Когда Минато разделил Кураму на две части, в размерах они стали в два раза меньше, чем когда были единым целым,' +
-              ' но все равно смотрелись наравне с остальными хвостатыми.',
-            dgenName: 'Наруто',
-            src2: '../images/Naruto_Uzumaki.png',
-            gif: '../images/kurama_gif.gif',
-            lastEat: Date.now(),
-            feedIteration: 4,
-            alive: true,
-            wasHungry: Date.now(),
-          }));
-        }
-        animal.hungryStatus = hungryStatus;
-      })
-
-      setAnimals(animalCopy);
-
-    }, 2000);
+    return () => clearInterval(interval);
   }, []);
-
 
   return (
     <>
